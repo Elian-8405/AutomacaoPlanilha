@@ -1,4 +1,4 @@
-# 📊 Extracao automatica para o BI Indicadores de TI-EGIS
+# 📊 Extração automatica para o BI Indicadores de TI-EGIS
 
 
 🌟 Apresentação do Problema
