@@ -10,44 +10,63 @@ planilhas = st.file_uploader(
     accept_multiple_files=True
 )
 
+
 if len(planilhas) == 3:
     if st.button("Processar"):
         try:
             # Ler as duas primeiras planilhas 'sc_task'
-            df1 = pd.read_excel(planilhas[0])
-            df2 = pd.read_excel(planilhas[1])
+            task1 = pd.read_excel(planilhas[0])
+            task2 = pd.read_excel(planilhas[1])
             
             # Ler a terceira planilha 'incident'
-            df3 = pd.read_excel(planilhas[2])
+            incident = pd.read_excel(planilhas[2])
             
-            # Remover a coluna 'Categoria' da planilha 'incident' se existir
-            if 'Categoria' in df3.columns:
-                df3 = df3.drop(columns='Categoria')
-            
-            # Concatenar as duas primeiras planilhas 'sc_task'
-            df_sc_task = pd.concat([df1, df2], axis=0, ignore_index=True)
-            
-            # Ajustar a planilha 'incident' para alinhar com 'sc_task'
-            df3_adjusted = df3.rename(columns={'Canal': 'Catálogo', 'Resolvido': 'Fechado a'})
-            
-            # Manter apenas as colunas de 'sc_task' que estão presentes em 'incident'
-            colunas_comuns = [col for col in df_sc_task.columns if col in df3_adjusted.columns]
-            df3_aligned = df3_adjusted[colunas_comuns]
-            
-            # Concatenar as planilhas verticalmente
-            df_final = pd.concat([df_sc_task, df3_aligned], axis=0, ignore_index=True)
+            tasks_concatened = pd.concat([task1, task2], ignore_index=True, axis=0)
 
-            # fazer o replace das colunas especificas
-            col_p_mudar = ['Urgência', 'Impacto']
-            mapeamento = {"Alto": "High", "Médio": "Medium", "Baixo": "Low"}
-            for coluna in colunas_comuns:
-                if coluna in df_final.columns:
-                    df_final[coluna] = df_final[coluna].replace(mapeamento)
+            def tratament_of_incident_sheet(incident):
+                incident_sheet = incident
+                if 'Categoria' in incident_sheet.columns:
+                    incident_sheet = incident_sheet.drop(columns='Categoria')
+                if 'SLA efetuado' in incident_sheet.columns:
+                    incident_sheet = incident_sheet.drop(columns='SLA efetuado')
+                incident_sheet = incident_sheet.rename(columns={'Tipo de contacto': 'Catálogo', 'Resolvido': 'Fechado'})
+                return incident_sheet
+
+            def tratament_of_tasks_sheets(tasks_concatened):
+                trated_tasks  = tasks_concatened
+                if 'SLA efetuado' in tasks_concatened.columns:
+                    trated_tasks = tasks_concatened.drop(columns='SLA efetuado')
+                
+                return trated_tasks
+
+
+            tasks = tratament_of_tasks_sheets(tasks_concatened)
+            incidents = tratament_of_incident_sheet(incident)
+
+
+
+            def normalize_data(taks_final, incidente_final):
+                tasks = taks_final
+                incidents = incidente_final
+                normalized_data = pd.concat([tasks, incidents], axis=0, ignore_index=True)
+                
+                cols_to_change = ['Urgência', 'Impacto']
+                changing_mapping = {'Alto' : 'High', 'Médio': 'Medium', 'Baixo': 'Low'}
+
+                for col in normalized_data.columns:
+                    if col in cols_to_change:
+                        normalized_data[col] = normalized_data[col].replace(changing_mapping)
+
+
+                return normalized_data
+
+
             
-            # Preparar o arquivo para download
+            nomalized_data = normalize_data(tasks, incidents)
+
             output = BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                df_final.to_excel(writer, index=False, sheet_name='Dados Processados')
+               nomalized_data.to_excel(writer, index=False, sheet_name='Dados Processados')
             processed_data = output.getvalue()
             
             st.download_button(
